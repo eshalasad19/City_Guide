@@ -37,8 +37,9 @@ dependencies:
   cloud_firestore:
   firebase_core:
   firebase_auth:
-  lottie: ^2.6.0
+  lottie: ^3.3.2
   device_preview:
+  carousel_slider:
 
 dev_dependencies:
   flutter_test:
@@ -50,7 +51,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
