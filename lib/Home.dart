@@ -1,4 +1,5 @@
 import 'package:citiguide/firebase_options.dart';
+import 'package:citiguide/signup.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -81,8 +82,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   
  String searchQuery = "";
-  
- git push
 
 
   @override
@@ -172,6 +171,13 @@ class _MyHomePageState extends State<MyHomePage> {
               leading: const Icon(Icons.settings),
               title: const Text('Settings'),
               onTap: () {},
+            ),
+              ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Signup'),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (s) => Signup()));
+              },
             ),
           ],
         ),

@@ -1,68 +1,20 @@
-import 'package:citiguide/firebase_options.dart';
-import 'package:citiguide/login.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:device_preview/device_preview.dart';
+import 'package:citiguide/Home.dart';
+import 'package:citiguide/forgetPassword.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  runApp(
-    DevicePreview(
-      enabled: !kReleaseMode,
-      builder: (context) => Signup(),
-    ),
-  );
-}
-
-class Signup extends StatelessWidget {
-  const Signup({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      useInheritedMediaQuery: true,
-      locale: DevicePreview.locale(context),
-      builder: DevicePreview.appBuilder,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Color(0xFF2563EB),
-          brightness: Brightness.light,
-        ),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Color(0xFF2563EB),
-          brightness: Brightness.dark,
-        ),
-      ),
-      home: const MyHomePage(title: 'City Guide Registration'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-  final String title;
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  TextEditingController name = TextEditingController();
+class _LoginPageState extends State<LoginPage> {
   TextEditingController email = TextEditingController();
-  TextEditingController pswd = TextEditingController();
-  TextEditingController cpswd = TextEditingController();
+  TextEditingController password = TextEditingController();
   bool _isLoading = false;
   bool _showPassword = false;
-  bool _showConfirmPassword = false;
 
   void show_msg(String m) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -81,11 +33,13 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        // Auto close dialog after 3 seconds
-        Future.delayed(Duration(seconds: 3), () {
+        // Auto close dialog after 2 seconds
+        Future.delayed(Duration(seconds: 2), () {
           if (mounted && Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
-            _redirectToLogin();
+            // Navigate to home page or dashboard
+            Navigator.of(context).push(MaterialPageRoute(builder: (h) => Home()));
+            show_msg("Login successful! Redirecting to home...");
           }
         });
 
@@ -146,7 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   
                   // Title
                   Text(
-                    "Registration Successful!",
+                    "Login Successful!",
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -159,7 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   
                   // Message
                   Text(
-                    "Your account has been created successfully. A verification email has been sent to your email address.",
+                    "Welcome back to City Guide!",
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -181,7 +135,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   SizedBox(height: 12),
                   Text(
-                    "Redirecting to login...",
+                    "Redirecting...",
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[500],
@@ -197,72 +151,56 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _redirectToLogin() {
-    // TODO: Uncomment and modify to navigate to your login page
-    // Navigator.of(context).pushReplacementNamed('/login');
-    // OR
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => LoginPage()),
-    );
-    
-    // For now, showing a message
-    show_msg("Redirecting to login page...");
-  }
-
-  void add_user() async {
+  void login_user() async {
     try {
-      FirebaseFirestore db = FirebaseFirestore.instance;
       FirebaseAuth auth = FirebaseAuth.instance;
-      final name_regex = RegExp(r"^[a-zA-Z0-9_-]{3,15}$");
       final email_regex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
-      final psw_regex = RegExp(r'^.{8,}$');
 
-      if (name.text.isEmpty || email.text.isEmpty || pswd.text.isEmpty || cpswd.text.isEmpty) {
+      if (email.text.isEmpty || password.text.isEmpty) {
         show_msg("All Fields are Required");
         return;
       }
-      if (pswd.text != cpswd.text) {
-        show_msg("Password Doesn't Match");
-        return;
-      }
-      if (!name_regex.hasMatch(name.text)) {
-        show_msg("Name is Invalid");
-        return;
-      }
+
       if (!email_regex.hasMatch(email.text)) {
         show_msg("Email is Invalid");
         return;
       }
-      if (!psw_regex.hasMatch(pswd.text)) {
-        show_msg("Password is Invalid");
+
+      if (password.text.length < 8) {
+        show_msg("Password must be at least 8 characters");
         return;
       }
 
       setState(() => _isLoading = true);
 
-      UserCredential userdata = await auth.createUserWithEmailAndPassword(
+      UserCredential userdata = await auth.signInWithEmailAndPassword(
         email: email.text,
-        password: pswd.text,
+        password: password.text,
       );
 
-      await db.collection("Register").add({
-        "Name": name.text,
-        "Email": email.text,
-        "Password": pswd.text,
-        "Created_At": DateTime.now()
-      });
+      // Check if email is verified
+      if (!userdata.user!.emailVerified) {
+        show_msg("Please verify your email first");
+        await auth.signOut();
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      await userdata.user?.sendEmailVerification();
-      
       // Show success dialog
       _showSuccessDialog();
 
-      name.clear();
       email.clear();
-      pswd.clear();
-      cpswd.clear();
+      password.clear();
     } on FirebaseAuthException catch (e) {
-      show_msg("Firebase : " + e.toString());
+      if (e.code == 'user-not-found') {
+        show_msg("No user found with this email");
+      } else if (e.code == 'wrong-password') {
+        show_msg("Wrong password provided");
+      } else if (e.code == 'invalid-email') {
+        show_msg("Invalid email address");
+      } else {
+        show_msg("Firebase Error: " + e.message.toString());
+      }
       print(e.toString());
     } catch (e) {
       show_msg("Error: " + e.toString());
@@ -310,7 +248,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   SizedBox(height: 12),
                   Text(
-                    "Welcome to City Guide",
+                    "Welcome Back",
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -320,7 +258,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    "Create your account",
+                    "Login to your account",
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.white.withOpacity(0.8),
@@ -347,16 +285,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     padding: EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // Name Field
-                        _buildInputField(
-                          controller: name,
-                          label: "Full Name",
-                          icon: Icons.person_outline,
-                          hint: "Enter your full name",
-                          isDarkMode: isDarkMode,
-                        ),
-                        SizedBox(height: 14),
-
                         // Email Field
                         _buildInputField(
                           controller: email,
@@ -366,11 +294,11 @@ class _MyHomePageState extends State<MyHomePage> {
                           keyboardType: TextInputType.emailAddress,
                           isDarkMode: isDarkMode,
                         ),
-                        SizedBox(height: 14),
+                        SizedBox(height: 18),
 
                         // Password Field
                         _buildPasswordField(
-                          controller: pswd,
+                          controller: password,
                           label: "Password",
                           hint: "Enter your password",
                           isVisible: _showPassword,
@@ -379,27 +307,38 @@ class _MyHomePageState extends State<MyHomePage> {
                           },
                           isDarkMode: isDarkMode,
                         ),
-                        SizedBox(height: 14),
+                        SizedBox(height: 12),
 
-                        // Confirm Password Field
-                        _buildPasswordField(
-                          controller: cpswd,
-                          label: "Confirm Password",
-                          hint: "Confirm your password",
-                          isVisible: _showConfirmPassword,
-                          onToggle: () {
-                            setState(() => _showConfirmPassword = !_showConfirmPassword);
-                          },
-                          isDarkMode: isDarkMode,
+                        // Forgot Password Link
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (f) => ForgotPasswordPage()));
+                            },
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              "Forgot Password?",
+                              style: TextStyle(
+                                color: Color(0xFF2563EB),
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
                         ),
                         SizedBox(height: 20),
 
-                        // Signup Button
+                        // Login Button
                         SizedBox(
                           width: double.infinity,
                           height: 48,
                           child: ElevatedButton.icon(
-                            onPressed: _isLoading ? null : add_user,
+                            onPressed: _isLoading ? null : login_user,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Color(0xFF2563EB),
                               foregroundColor: Colors.white,
@@ -417,9 +356,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : Icon(Icons.app_registration, size: 18),
+                                : Icon(Icons.login, size: 18),
                             label: Text(
-                              _isLoading ? "Creating..." : "Sign Up",
+                              _isLoading ? "Logging in..." : "Login",
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -428,14 +367,33 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                           ),
                         ),
-                        SizedBox(height: 12),
+                        SizedBox(height: 16),
 
-                        // Login Link
+                        // Divider
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: isDarkMode ? Colors.grey[700] : Colors.grey[300])),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                "or",
+                                style: TextStyle(
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: isDarkMode ? Colors.grey[700] : Colors.grey[300])),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+
+                        // Sign Up Link
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              "Have an account? ",
+                              "Don't have an account? ",
                               style: TextStyle(
                                 color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                                 fontSize: 12,
@@ -443,7 +401,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                             TextButton(
                               onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (builder)=> LoginPage()));
+                                // TODO: Navigate to registration page
+                                // Navigator.push(context, MaterialPageRoute(builder: (builder)=>Signup()));
                               },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
@@ -451,7 +410,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: Text(
-                                "Sign In",
+                                "Sign Up",
                                 style: TextStyle(
                                   color: Color(0xFF2563EB),
                                   fontWeight: FontWeight.w600,
@@ -624,10 +583,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
-    name.dispose();
     email.dispose();
-    pswd.dispose();
-    cpswd.dispose();
+    password.dispose();
     super.dispose();
   }
 }
