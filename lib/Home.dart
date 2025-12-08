@@ -1,3 +1,4 @@
+import 'package:citiguide/addcities.dart';
 import 'package:citiguide/adminlogin.dart';
 import 'package:citiguide/firebase_options.dart';
 import 'package:citiguide/signup.dart';
@@ -185,6 +186,13 @@ class _MyHomePageState extends State<MyHomePage> {
               title: const Text('adminlogin'),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (s) => adminlogin()));
+              },
+            ),
+             ListTile(
+              leading: const Icon(Icons.add),
+              title: const Text('add cities'),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (s) => Addcities()));
               },
             ),
           ],
