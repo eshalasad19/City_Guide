@@ -1,3 +1,4 @@
+import 'package:citiguide/adminlogin.dart';
 import 'package:citiguide/firebase_options.dart';
 import 'package:citiguide/signup.dart';
 import 'package:device_preview/device_preview.dart';
@@ -177,6 +178,13 @@ class _MyHomePageState extends State<MyHomePage> {
               title: const Text('Signup'),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (s) => Signup()));
+              },
+            ),
+             ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('adminlogin'),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (s) => adminlogin()));
               },
             ),
           ],

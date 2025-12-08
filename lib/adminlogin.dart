@@ -1,33 +1,35 @@
-import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:citiguide/Dashboard.dart';
+import 'package:citiguide/firebase_options.dart';
+import 'package:device_preview/device_preview.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:registration/dashboard.dart';
 
-import 'package:registration/firebase_options.dart';
-import 'package:registration/forgetpassword.dart';
-import 'package:registration/register.dart';
-
-void main() async{
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
-);
-  runApp(const login());
+  );
+  runApp(
+    DevicePreview(
+      enabled: !kReleaseMode,
+      builder: (context) => adminlogin(),
+    ),
+  );
 }
 
-class login extends StatelessWidget {
-  const login({super.key});
-
-  // This widget is the root of your application.
+// ignore: camel_case_types
+class adminlogin extends StatelessWidget {
+  const adminlogin({super.key});
   @override
+
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
+      useInheritedMediaQuery: true,
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
@@ -35,124 +37,182 @@ class login extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
   final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  _LoginPageState createState() => _LoginPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  TextEditingController email = TextEditingController();
-  TextEditingController pswd = TextEditingController();
+class _LoginPageState extends State<MyHomePage> {
+  final _formKey = GlobalKey<FormState>();
+  String _email = '';
+  String _password = '';
 
-  void show_msg(String m){
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
-  }
-  void add_user()async{
-    try {
-      FirebaseFirestore db = FirebaseFirestore.instance;
-      final email_regex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
-      final psw_regex = RegExp(r'^.{8,}$');
+  // Dummy credentials
+  final String validEmail = "areebaaizal0987@gmail.com";
+  final String validPassword = "12345";
 
-      if( email.text.isEmpty || pswd.text.isEmpty){
-        show_msg("All Fields are Required");
-        return;
-      }
-      if(!email_regex.hasMatch(email.text)){
-        show_msg("Email is Invalid");
-        return;
-      }
-      if (!psw_regex.hasMatch(pswd.text)) {
-        show_msg("Password is Inavlid");
-        return;
-      }
+  void _login() {
+    if (_formKey.currentState!.validate()) {
+      if (_email == validEmail && _password == validPassword) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login Successful!')),
+        );
 
-      UserCredential userdata = await auth.signInWithEmailAndPassword(
-        email: email.text,
-         password: pswd.text);
-         if (!userdata.user!.emailVerified) {
-           await auth.signOut();
-           show_msg("Verify Email First");
-           return;
-         }else{
-          show_msg("Login Successfully");
-          Navigator.push(context, MaterialPageRoute(builder: (a)=>dashboard()));
-         }
-    } on FirebaseAuthException catch(e){
-      show_msg("Firebase : " + e.toString());
-      print(e.toString());
-    }
-     catch (e) {
-      show_msg("Error: " + e.toString());
-      print(e.toString());
+        // ⭐⭐⭐ LOGIN SUCCESS — NAVIGATOR ADDED ⭐⭐⭐
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (a)=> Dashboard()), // Navigate to Dashboard
+        );
+        
+
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Invalid email or password')),
+        );
+      }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Login Yourself", style: TextStyle(fontSize: 24)),
-
-            Container(
-              margin: EdgeInsets.all(10),
-
-              constraints: BoxConstraints(maxWidth: 300),
-              child: TextField(
-                controller: email,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: "Enter Your Email",
-                  suffixIcon: Icon(Icons.email),
-                ),
-              ),
-            ),
-
-            Container(
-              margin: EdgeInsets.all(10),
-
-              constraints: BoxConstraints(maxWidth: 300),
-              child: TextField(
-                controller: pswd,
-                obscureText: true,
-                keyboardType: TextInputType.text,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: "Enter Your Password",
-                  suffixIcon: Icon(Icons.password),
-                ),
-              ),
-            ),
-            OutlinedButton.icon(
-              onPressed: () {
-                add_user();
-              },
-              label: Text("Login"),
-              icon: Icon(Icons.app_registration),
-            ),
-            Container(
-              margin: EdgeInsets.all(10),
-              child: TextButton(
-                onPressed: (){
-                  Navigator.push(context, MaterialPageRoute(builder: (builder)=>Register()));
-                }, child: Text("Don't have an Account",
-                style: TextStyle(color: Colors.greenAccent),)),
-            ),
-            Container(
-              margin: EdgeInsets.all(10),
-              child: TextButton(
-                onPressed: (){
-                  Navigator.push(context, MaterialPageRoute(builder: (builder)=>ForgetPassword()));
-                }, child: Text("Forget Password",
-                style: TextStyle(color: Colors.red),)),
-            )
-          ],
+      appBar: AppBar(
+        backgroundColor: Colors.deepPurple,
+        elevation: 4,
+        centerTitle: true,
+        title: Text(
+          'Login Page',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
         ),
-    ));
+      ),
+
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF7F7FD5),
+              Color(0xFF86A8E7),
+              Color(0xFF91EAE4),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+
+        child: Center(
+          child: Container(
+            padding: EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 12,
+                  offset: Offset(0, 5),
+                )
+              ],
+            ),
+
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    "Admin Login",
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+
+                  SizedBox(height: 20),
+
+                  // Email Input
+                  TextFormField(
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.email, color: Colors.deepPurple),
+                      labelText: 'Email',
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      _email = value;
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your email';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  SizedBox(height: 15),
+
+                  // Password Input
+                  TextFormField(
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.lock, color: Colors.deepPurple),
+                      labelText: 'Password',
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      _password = value;
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your password';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  SizedBox(height: 25),
+
+                  // Login Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _login,
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: Colors.deepPurple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
+                      ),
+                      child: Text(
+                        'Login',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
