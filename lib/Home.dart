@@ -1,3 +1,4 @@
+import 'package:citiguide/UserProfile.dart';
 import 'package:citiguide/adminlogin.dart';
 import 'package:citiguide/citydetail.dart';
 import 'package:citiguide/firebase_options.dart';
@@ -168,7 +169,15 @@ class _MyHomePageState extends State<MyHomePage> {
               title: const Text('Admin Login'),
               onTap: () {
                 Navigator.push(
-                    context, MaterialPageRoute(builder: (s) => adminlogin()));
+                    context, MaterialPageRoute(builder: (s) => AdminLoginApp()));
+              },
+            ),
+             ListTile(
+              leading: const Icon(Icons.admin_panel_settings),
+              title: const Text('User Profile'),
+              onTap: () {
+                Navigator.push(
+                    context, MaterialPageRoute(builder: (s) => UserProfile()));
               },
             ),
           ],

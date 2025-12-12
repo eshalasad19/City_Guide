@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -56,10 +57,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  // Dummy image URL to use if the user does not provide one
+  static const String _defaultProfileImageUrl =
+      "https://firebasestorage.googleapis.com/v0/b/flutter-chat-app-2024.appspot.com/o/default_profile.png?alt=media&token=c4a9a0e1-4b1f-4d3e-9f0e-3b2e4f0d2a1b";
   TextEditingController name = TextEditingController();
   TextEditingController email = TextEditingController();
   TextEditingController pswd = TextEditingController();
   TextEditingController cpswd = TextEditingController();
+  TextEditingController profileImageUrl = TextEditingController(); // New controller for URL
   bool _isLoading = false;
   bool _showPassword = false;
   bool _showConfirmPassword = false;
@@ -245,12 +250,23 @@ class _MyHomePageState extends State<MyHomePage> {
         password: pswd.text,
       );
 
-      await db.collection("Register").add({
+      // Determine the final profile image URL
+      // Determine the final profile image URL with fallback logic
+      final String finalProfileUrl = profileImageUrl.text.trim().isNotEmpty
+          ? profileImageUrl.text.trim()
+          : _defaultProfileImageUrl;
+
+      // 1. Save user data to Firestore, including the profile image URL
+      await db.collection("Register").doc(userdata.user!.uid).set({
         "Name": name.text,
         "Email": email.text,
-        "Password": pswd.text,
+        "ProfileImageUrl": finalProfileUrl, // New field with fallback logic
         "Created_At": DateTime.now()
       });
+
+      // 2. Update Firebase Auth profile (optional but good practice)
+      await userdata.user!.updateDisplayName(name.text);
+      await userdata.user!.updatePhotoURL(finalProfileUrl);
 
       await userdata.user?.sendEmailVerification();
       
@@ -261,6 +277,7 @@ class _MyHomePageState extends State<MyHomePage> {
       email.clear();
       pswd.clear();
       cpswd.clear();
+      profileImageUrl.clear();
     } on FirebaseAuthException catch (e) {
       show_msg("Firebase : " + e.toString());
       print(e.toString());
@@ -347,7 +364,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     padding: EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // Name Field
+                       // Name Field
                         _buildInputField(
                           controller: name,
                           label: "Full Name",
@@ -355,7 +372,18 @@ class _MyHomePageState extends State<MyHomePage> {
                           hint: "Enter your full name",
                           isDarkMode: isDarkMode,
                         ),
-                        SizedBox(height: 14),
+                        SizedBox(height: 20),
+
+                        // Profile Picture URL Field
+                        _buildInputField(
+                          controller: profileImageUrl,
+                          label: "Profile Picture URL (Optional)",
+                          icon: Icons.link,
+                          hint: "Paste image URL here",
+                          keyboardType: TextInputType.url,
+                          isDarkMode: isDarkMode,
+                        ),
+                        SizedBox(height: 20),
 
                         // Email Field
                         _buildInputField(
@@ -628,6 +656,7 @@ class _MyHomePageState extends State<MyHomePage> {
     email.dispose();
     pswd.dispose();
     cpswd.dispose();
+    profileImageUrl.dispose();
     super.dispose();
   }
 }
