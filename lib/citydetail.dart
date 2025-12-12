@@ -1,5 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'City Guide',
+      home: const CityListPage(),
+    );
+  }
+}
+
+// ---------------- CITY LIST PAGE ----------------
+class CityListPage extends StatelessWidget {
+  const CityListPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Cities")),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection("cities").snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No cities found"));
+          }
+
+          var cityList = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: cityList.length,
+            itemBuilder: (context, index) {
+              var city = cityList[index];
+              return ListTile(
+                leading: Image.network(city['image'], width: 80, fit: BoxFit.cover),
+                title: Text(city['name']),
+                subtitle: Text(
+                  city['description'],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CityDetailsPage(
+                        city_name: city['name'],
+                        city_description: city['description'],
+                        city_image: city['image'],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------- CITY DETAILS PAGE ----------------
 class CityDetailsPage extends StatelessWidget {
   final String city_name;
   final String city_description;
@@ -17,17 +93,13 @@ class CityDetailsPage extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // ------------------ TOP BANNER IMAGE ------------------
+          // Top Image
           SizedBox(
             height: 330,
             width: double.infinity,
-            child: Image.network(
-              city_image,
-              fit: BoxFit.cover,
-            ),
+            child: Image.network(city_image, fit: BoxFit.cover),
           ),
-
-          // ------------- GRADIENT OVERLAY -------------
+          // Gradient overlay
           Container(
             height: 330,
             decoration: BoxDecoration(
@@ -41,8 +113,7 @@ class CityDetailsPage extends StatelessWidget {
               ),
             ),
           ),
-
-          // ------------------ CITY NAME ------------------
+          // City Name
           Positioned(
             left: 20,
             bottom: 80,
@@ -52,18 +123,11 @@ class CityDetailsPage extends StatelessWidget {
                 fontSize: 34,
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(
-                    color: Colors.black,
-                    offset: Offset(2, 2),
-                    blurRadius: 6,
-                  )
-                ],
+                shadows: [Shadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 6)],
               ),
             ),
           ),
-
-          // ---------------- BACK BUTTON ----------------
+          // Back button
           Positioned(
             top: 40,
             left: 15,
@@ -75,8 +139,7 @@ class CityDetailsPage extends StatelessWidget {
               ),
             ),
           ),
-
-          // --------------- WHITE CONTENT AREA ---------------
+          // Content Area
           Positioned(
             top: 300,
             left: 0,
@@ -95,122 +158,59 @@ class CityDetailsPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
-                    // ------------------ CATEGORY BUTTONS ------------------
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _categoryButton(Icons.place, "Attractions"),
-                        _categoryButton(Icons.restaurant, "Restaurants"),
-                        _categoryButton(Icons.hotel, "Hotels"),
-                        _categoryButton(Icons.event, "Events"),
-                      ],
+                    // Dynamic Categories
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance.collection("categories").snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return const Text("No Categories Found");
+                        }
+                        var categoryList = snapshot.data!.docs;
+                        return SizedBox(
+                          height: 110,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: categoryList.length,
+                            itemBuilder: (context, index) {
+                              var cat = categoryList[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 15),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blueAccent.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(Icons.category, size: 28, color: Colors.blueAccent),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      cat['name'],
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
                     ),
-
                     const SizedBox(height: 20),
-
-                    // ---------- ABOUT CITY ----------
-                    const Text(
-                      "About City",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
+                    // About City
+                    const Text("About City", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
-
-                    Text(
-                      city_description,
-                      style: const TextStyle(fontSize: 16, height: 1.4),
-                    ),
-
+                    Text(city_description, style: const TextStyle(fontSize: 16, height: 1.4)),
                     const SizedBox(height: 20),
-
-                    // 🔥 POPULAR ATTRACTIONS SECTION
-                    _sectionTitle("Popular Attractions"),
-                    _itemCard("Famous Park", "https://images.unsplash.com/photo-1501785888041-af3ef285b470"),
-                    _itemCard("Historic Museum", "https://images.unsplash.com/photo-1581092795360-3b6c2c1e7f9e"),
-
-                    const SizedBox(height: 20),
-
-                    // 🍔 RESTAURANTS SECTION
-                    _sectionTitle("Top Restaurants"),
-                    _itemCard("Italian Food Spot", "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba"),
-                    _itemCard("BBQ House", "https://images.unsplash.com/photo-1553621042-f6e147245754"),
-
-                    const SizedBox(height: 20),
-
-                    // 🏨 HOTELS SECTION
-                    _sectionTitle("Best Hotels"),
-                    _itemCard("Grand Luxury Hotel", "https://images.unsplash.com/photo-1542317854-d09cb1c9e399"),
-                    _itemCard("Royal Palace Inn", "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b"),
-
-                    const SizedBox(height: 30),
                   ],
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // CATEGORY BUTTON
-  Widget _categoryButton(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.blueAccent.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, size: 28, color: Colors.blueAccent),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-
-  // SECTION TITLE
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  // ITEM CARD
-  Widget _itemCard(String name, String imgUrl) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: const Color.fromARGB(255, 177, 90, 90),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(14),
-              bottomLeft: Radius.circular(14),
-            ),
-            child: Image.network(
-              imgUrl,
-              height: 90,
-              width: 110,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            name,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ],
       ),

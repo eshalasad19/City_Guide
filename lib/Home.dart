@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import 'package:citiguide/UserProfile.dart';
+=======
+import 'package:citiguide/addattraction.dart';
+>>>>>>> 5971a709d1b0071ced0d2957edf8dc08cef19c2a
 import 'package:citiguide/adminlogin.dart';
+import 'package:citiguide/attractiondetail.dart';
 import 'package:citiguide/citydetail.dart';
 import 'package:citiguide/firebase_options.dart';
 import 'package:citiguide/signup.dart';
@@ -178,6 +183,22 @@ class _MyHomePageState extends State<MyHomePage> {
               onTap: () {
                 Navigator.push(
                     context, MaterialPageRoute(builder: (s) => UserProfile()));
+              },
+            ),
+              ListTile(
+              leading: const Icon(Icons.admin_panel_settings),
+              title: const Text('add attraction '),
+              onTap: () {
+                Navigator.push(
+                    context, MaterialPageRoute(builder: (s) => AddAttractionPage()));
+              },
+            ),
+             ListTile(
+              leading: const Icon(Icons.admin_panel_settings),
+              title: const Text('add attractiondetail'),
+              onTap: () {
+                Navigator.push(
+                    context, MaterialPageRoute(builder: (s) => AddAttractionDetail()));
               },
             ),
           ],
