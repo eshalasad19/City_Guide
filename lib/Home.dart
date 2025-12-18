@@ -1,3 +1,5 @@
+import 'package:citiguide/addattraction.dart';
+import 'package:citiguide/addcategory.dart';
 import 'package:citiguide/addcities.dart';
 import 'package:citiguide/adminlogin.dart';
 import 'package:citiguide/citydetail.dart';
@@ -177,6 +179,20 @@ class _MyHomePageState extends State<MyHomePage> {
               title: const Text('add cities'),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (s) => Addcities()));
+              },
+            ),
+             ListTile(
+              leading: const Icon(Icons.add),
+              title: const Text('add atttraction'),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (s) => AddAttractionPage()));
+              },
+            ),
+             ListTile(
+              leading: const Icon(Icons.add),
+              title: const Text('add categories'),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (s) => AddCategoryPage()));
               },
             ),
           ],
