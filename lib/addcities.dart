@@ -64,9 +64,10 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       await db.collection("cities").add({
-        "Name": name,
-        "Description": description,
-        "Image": image,
+        
+        "city_name": name,
+        "city_description": description,
+        "city_image_url": image,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -127,7 +128,7 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
-              context, MaterialPageRoute(builder: (a) => Showcities()));
+              context, MaterialPageRoute(builder: (a) => showcities()));
         },
         child: Icon(Icons.add),
       ),
@@ -151,3 +152,4 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
+
