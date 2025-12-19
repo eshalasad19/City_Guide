@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:lottie/lottie.dart';
-import 'package:citiguide/Home.dart'; // Assuming this is the next screen after login/splash
-import 'package:citiguide/login.dart'; // Assuming this is the login page for redirection
-import 'package:firebase_core/firebase_core.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:citiguide/firebase_options.dart';
 import 'package:device_preview/device_preview.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
 // --- Global Constants ---
 const Color primaryColor = Color(0xFF2563EB);
 const Color accentColor = Color(0xFF10B981);
+const Color dangerColor = Color(0xFFEF4444);
 
-// --- Main Function (as provided by user) ---
+// --- Main Function ---
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -22,14 +23,13 @@ void main() async {
   runApp(
     DevicePreview(
       enabled: !kReleaseMode,
-      builder: (context) => const UserProfile(),
+      builder: (context) => const UserProfileApp(),
     ),
   );
 }
 
-// --- UserProfile (as provided by user) ---
-class UserProfile extends StatelessWidget {
-  const UserProfile({super.key});
+class UserProfileApp extends StatelessWidget {
+  const UserProfileApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -40,12 +40,18 @@ class UserProfile extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: primaryColor),
         useMaterial3: true,
       ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryColor,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
       home: const MyHomePage(title: 'User Profile'),
     );
   }
 }
 
-// --- MyHomePage (Modified to host the ProfilePage) ---
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
   final String title;
@@ -57,7 +63,6 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    // Check if user is logged in, otherwise redirect to login or show a loading screen
     if (FirebaseAuth.instance.currentUser == null) {
       return const Scaffold(
         body: Center(child: Text("Please log in to view your profile.")),
@@ -66,8 +71,6 @@ class _MyHomePageState extends State<MyHomePage> {
     return const ProfilePage();
   }
 }
-
-// --- Profile Page Implementation ---
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -80,19 +83,29 @@ class _ProfilePageState extends State<ProfilePage> {
   final User? user = FirebaseAuth.instance.currentUser;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _showPassword = false;
+  bool _showNewPassword = false;
+  bool _showConfirmPassword = false;
 
   // Controllers for editable fields
   late TextEditingController _nameController;
   late TextEditingController _emailController;
+  late TextEditingController _currentPasswordController;
+  late TextEditingController _newPasswordController;
+  late TextEditingController _confirmPasswordController;
 
-  // Preference state
-  List<String> _favoriteAttractions = ['Park', 'Museum'];
+  File? _profileImage;
+  String? _profileImageUrl;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: user?.displayName ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
+    _currentPasswordController = TextEditingController();
+    _newPasswordController = TextEditingController();
+    _confirmPasswordController = TextEditingController();
+    _profileImageUrl = user?.photoURL;
     _fetchUserData();
   }
 
@@ -100,10 +113,12 @@ class _ProfilePageState extends State<ProfilePage> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  // --- Data Fetching ---
   Future<void> _fetchUserData() async {
     if (user == null) return;
     try {
@@ -111,7 +126,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (doc.exists) {
         final data = doc.data()!;
         setState(() {
-          _favoriteAttractions = List<String>.from(data['Favorites'] ?? ['Park', 'Museum']);
+          _profileImageUrl = data['profilePicture'] ?? user?.photoURL;
         });
       }
     } catch (e) {
@@ -119,7 +134,34 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- Update Logic ---
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _profileImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<String?> _uploadProfileImage() async {
+    if (_profileImage == null) return _profileImageUrl;
+
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures/${user!.uid}.jpg');
+
+      await storageRef.putFile(_profileImage!);
+      final downloadUrl = await storageRef.getDownloadURL();
+      return downloadUrl;
+    } catch (e) {
+      _showSnackBar("Error uploading image: $e");
+      return null;
+    }
+  }
+
   Future<void> _updateProfile() async {
     if (!_formKey.currentState!.validate()) return;
     if (user == null) return;
@@ -127,16 +169,30 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Update Firebase Auth Profile
-      await user!.updateDisplayName(_nameController.text.trim());
-      // Note: Email update requires re-authentication, so we skip it here for simplicity.
+      // Upload profile image if selected
+      String? imageUrl = _profileImageUrl;
+      if (_profileImage != null) {
+        imageUrl = await _uploadProfileImage();
+      }
 
-      // 2. Update Firestore Document
+      // Update Firebase Auth Profile
+      await user!.updateDisplayName(_nameController.text.trim());
+      if (imageUrl != null) {
+        await user!.updatePhotoURL(imageUrl);
+      }
+
+      // Update Firestore Document
       await FirebaseFirestore.instance.collection('Register').doc(user!.uid).set({
         'Name': _nameController.text.trim(),
-        'Email': _emailController.text.trim(), // Storing email in Firestore for consistency
-        'Favorites': _favoriteAttractions,
+        'Email': _emailController.text.trim(),
+        'profilePicture': imageUrl,
+        'updatedAt': DateTime.now(),
       }, SetOptions(merge: true));
+
+      setState(() {
+        _profileImageUrl = imageUrl;
+        _profileImage = null;
+      });
 
       _showSnackBar("Profile updated successfully!", isError: false);
     } on FirebaseAuthException catch (e) {
@@ -148,7 +204,54 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- Delete Logic ---
+  Future<void> _updatePassword() async {
+    if (_newPasswordController.text.isEmpty || _currentPasswordController.text.isEmpty) {
+      _showSnackBar("Please fill in all password fields");
+      return;
+    }
+
+    if (_newPasswordController.text != _confirmPasswordController.text) {
+      _showSnackBar("New passwords do not match");
+      return;
+    }
+
+    if (_newPasswordController.text.length < 8) {
+      _showSnackBar("Password must be at least 8 characters");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Re-authenticate user
+      final credential = EmailAuthProvider.credential(
+        email: user!.email!,
+        password: _currentPasswordController.text,
+      );
+
+      await user!.reauthenticateWithCredential(credential);
+
+      // Update password
+      await user!.updatePassword(_newPasswordController.text);
+
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+
+      _showSnackBar("Password updated successfully!", isError: false);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password') {
+        _showSnackBar("Current password is incorrect");
+      } else {
+        _showSnackBar("Firebase Error: ${e.message}");
+      }
+    } catch (e) {
+      _showSnackBar("Error updating password: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _deleteAccount() async {
     if (user == null) return;
 
@@ -156,10 +259,18 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete Account"),
-        content: const Text("Are you sure you want to delete your account? This action is irreversible."),
+        content: const Text(
+          "Are you sure you want to delete your account? This action is irreversible and all your data will be permanently deleted.",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Delete", style: TextStyle(color: dangerColor)),
+          ),
         ],
       ),
     );
@@ -167,20 +278,33 @@ class _ProfilePageState extends State<ProfilePage> {
     if (confirmed == true) {
       try {
         setState(() => _isLoading = true);
-        // 1. Delete Firestore data
+
+        // Delete Firestore data
         await FirebaseFirestore.instance.collection('Register').doc(user!.uid).delete();
-        
-        // 2. Delete Firebase Auth user (Requires re-authentication in a real app)
+
+        // Delete profile picture from storage
+        if (_profileImageUrl != null) {
+          try {
+            await FirebaseStorage.instance.refFromURL(_profileImageUrl!).delete();
+          } catch (e) {
+            print("Error deleting profile picture: $e");
+          }
+        }
+
+        // Delete Firebase Auth user
         await user!.delete();
 
         _showSnackBar("Account deleted successfully. Redirecting to login.", isError: false);
+
         // Redirect to login page
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => LoginPage()),
-          (Route<dynamic> route) => false,
-        );
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+            (Route<dynamic> route) => false,
+          );
+        }
       } on FirebaseAuthException catch (e) {
-        _showSnackBar("Error deleting account. Please re-login and try again. Error: ${e.message}");
+        _showSnackBar("Error deleting account: ${e.message}");
       } catch (e) {
         _showSnackBar("An unexpected error occurred: $e");
       } finally {
@@ -189,12 +313,11 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- Utility Widgets ---
   void _showSnackBar(String message, {bool isError = true}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : accentColor,
+        backgroundColor: isError ? dangerColor : accentColor,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -205,26 +328,81 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildProfileHeader() {
     return Column(
       children: [
-        CircleAvatar(
-          radius: 60,
-          backgroundColor: primaryColor.withOpacity(0.1),
-          backgroundImage: user?.photoURL != null
-              ? NetworkImage(user!.photoURL!)
-              : null,
-          child: user?.photoURL == null
-              ? Icon(Icons.person, size: 60, color: primaryColor)
-              : null,
+        Stack(
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [primaryColor, primaryColor.withOpacity(0.6)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryColor.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(60),
+                child: _profileImage != null
+                    ? Image.file(_profileImage!, fit: BoxFit.cover)
+                    : _profileImageUrl != null
+                        ? Image.network(_profileImageUrl!, fit: BoxFit.cover)
+                        : Icon(Icons.person, size: 60, color: Colors.white),
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accentColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: accentColor.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 16),
         Text(
           user?.displayName ?? 'User Name',
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[900],
+          ),
         ),
+        SizedBox(height: 4),
         Text(
           user?.email ?? 'user@example.com',
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
       ],
     );
   }
@@ -235,106 +413,275 @@ class _ProfilePageState extends State<ProfilePage> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     bool readOnly = false,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    String? Function(String?)? validator,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: EdgeInsets.only(bottom: 16.0),
       child: TextFormField(
         controller: controller,
         readOnly: readOnly,
         keyboardType: keyboardType,
+        obscureText: obscureText,
+        validator: validator ??
+            (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your $label';
+              }
+              return null;
+            },
+        style: TextStyle(
+          color: Colors.grey[900],
+          fontSize: 14,
+        ),
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: primaryColor),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          labelStyle: TextStyle(color: Colors.grey[600]),
+          prefixIcon: Icon(icon, color: primaryColor, size: 20),
+          suffixIcon: suffixIcon,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: primaryColor, width: 2),
+          ),
           filled: true,
-          fillColor: readOnly ? Colors.grey[100] : null,
+          fillColor: readOnly ? Colors.grey[100] : Colors.white,
+          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Please enter your $label';
-          }
-          return null;
-        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("User Profile"),
+        title: Text("My Profile"),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildProfileHeader(),
-              
+
               // --- Profile Information Section ---
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Profile Information",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[900] : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[300]!),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Profile Information",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
                       ),
-                      const Divider(),
-                      _buildEditableField(
-                        controller: _nameController,
-                        label: "Full Name",
-                        icon: Icons.person,
-                      ),
-                      _buildEditableField(
-                        controller: _emailController,
-                        label: "Email Address",
-                        icon: Icons.email,
-                        keyboardType: TextInputType.emailAddress,
-                        readOnly: true, // Email is read-only as changing it is complex in Firebase
-                      ),
-                    ],
-                  ),
+                    ),
+                    Divider(height: 20),
+                    _buildEditableField(
+                      controller: _nameController,
+                      label: "Full Name",
+                      icon: Icons.person,
+                    ),
+                    _buildEditableField(
+                      controller: _emailController,
+                      label: "Email Address",
+                      icon: Icons.email,
+                      keyboardType: TextInputType.emailAddress,
+                      readOnly: true,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
+
+              // --- Change Password Section ---
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[900] : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[300]!),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Change Password",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                      ),
+                    ),
+                    Divider(height: 20),
+                    _buildEditableField(
+                      controller: _currentPasswordController,
+                      label: "Current Password",
+                      icon: Icons.lock,
+                      obscureText: !_showPassword,
+                      suffixIcon: GestureDetector(
+                        onTap: () {
+                          setState(() => _showPassword = !_showPassword);
+                        },
+                        child: Icon(
+                          _showPassword ? Icons.visibility : Icons.visibility_off,
+                          color: primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    _buildEditableField(
+                      controller: _newPasswordController,
+                      label: "New Password",
+                      icon: Icons.lock_outline,
+                      obscureText: !_showNewPassword,
+                      suffixIcon: GestureDetector(
+                        onTap: () {
+                          setState(() => _showNewPassword = !_showNewPassword);
+                        },
+                        child: Icon(
+                          _showNewPassword ? Icons.visibility : Icons.visibility_off,
+                          color: primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    _buildEditableField(
+                      controller: _confirmPasswordController,
+                      label: "Confirm Password",
+                      icon: Icons.lock_outline,
+                      obscureText: !_showConfirmPassword,
+                      suffixIcon: GestureDetector(
+                        onTap: () {
+                          setState(() => _showConfirmPassword = !_showConfirmPassword);
+                        },
+                        child: Icon(
+                          _showConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                          color: primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 24),
 
               // --- Action Buttons ---
               ElevatedButton.icon(
                 onPressed: _isLoading ? null : _updateProfile,
                 icon: _isLoading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.save),
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(Icons.save),
                 label: Text(_isLoading ? "Saving..." : "Update Profile"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
-              const SizedBox(height: 15),
+              SizedBox(height: 12),
 
-              TextButton.icon(
-                onPressed: _isLoading ? null : _deleteAccount,
-                icon: const Icon(Icons.delete_forever, color: Colors.red),
-                label: const Text("Delete Account", style: TextStyle(color: Colors.red)),
+              ElevatedButton.icon(
+                onPressed: _isLoading ? null : _updatePassword,
+                icon: _isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(Icons.key),
+                label: Text(_isLoading ? "Updating..." : "Update Password"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
+              SizedBox(height: 12),
+
+              ElevatedButton.icon(
+                onPressed: _isLoading ? null : _deleteAccount,
+                icon: Icon(Icons.delete_forever),
+                label: Text("Delete Account"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: dangerColor,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              SizedBox(height: 20),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Placeholder for LoginPage
+class LoginPage extends StatelessWidget {
+  const LoginPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Text("Login Page"),
       ),
     );
   }

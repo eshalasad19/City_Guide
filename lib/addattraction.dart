@@ -125,7 +125,7 @@ class _AddAttractionPageState extends State<AddAttractionPage> {
                 controller: descriptionController,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  labelText: "Description",
+                  labelText: "Descriptions",
                   border: OutlineInputBorder(),
                 ),
               ),
