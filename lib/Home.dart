@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 import 'package:citiguide/UserProfile.dart';
-=======
 import 'package:citiguide/addattraction.dart';
->>>>>>> 5971a709d1b0071ced0d2957edf8dc08cef19c2a
 import 'package:citiguide/adminlogin.dart';
 import 'package:citiguide/attractiondetail.dart';
 import 'package:citiguide/citydetail.dart';
@@ -182,7 +179,7 @@ class _MyHomePageState extends State<MyHomePage> {
               title: const Text('User Profile'),
               onTap: () {
                 Navigator.push(
-                    context, MaterialPageRoute(builder: (s) => UserProfile()));
+                    context, MaterialPageRoute(builder: (s) => UserProfileApp()));
               },
             ),
               ListTile(

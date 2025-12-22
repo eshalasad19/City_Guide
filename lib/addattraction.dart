@@ -49,7 +49,7 @@ class _AddAttractionPageState extends State<AddAttractionPage> {
 
                   return DropdownButtonFormField(
                     items: cityItems,
-                    value: selectedCity,
+                    initialValue: selectedCity,
                     onChanged: (value) {
                       setState(() {
                         selectedCity = value;
@@ -82,7 +82,7 @@ class _AddAttractionPageState extends State<AddAttractionPage> {
 
                   return DropdownButtonFormField(
                     items: categoryItems,
-                    value: selectedCategory,
+                    initialValue: selectedCategory,
                     onChanged: (value) {
                       setState(() {
                         selectedCategory = value;
