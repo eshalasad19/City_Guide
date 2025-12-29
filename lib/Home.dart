@@ -1,8 +1,7 @@
-<<<<<<< HEAD
+
+import 'package:citiguide/Dashboard.dart';
 import 'package:citiguide/UserProfile.dart';
-=======
 import 'package:citiguide/addattraction.dart';
->>>>>>> 5971a709d1b0071ced0d2957edf8dc08cef19c2a
 import 'package:citiguide/adminlogin.dart';
 import 'package:citiguide/attractiondetail.dart';
 import 'package:citiguide/citydetail.dart';
@@ -187,20 +186,13 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
               ListTile(
               leading: const Icon(Icons.admin_panel_settings),
-              title: const Text('add attraction '),
+              title: const Text('dashboard '),
               onTap: () {
                 Navigator.push(
-                    context, MaterialPageRoute(builder: (s) => AddAttractionPage()));
+                    context, MaterialPageRoute(builder: (s) => dashboard()));
               },
             ),
-             ListTile(
-              leading: const Icon(Icons.admin_panel_settings),
-              title: const Text('add attractiondetail'),
-              onTap: () {
-                Navigator.push(
-                    context, MaterialPageRoute(builder: (s) => AddAttractionDetail()));
-              },
-            ),
+            
           ],
         ),
       ),
