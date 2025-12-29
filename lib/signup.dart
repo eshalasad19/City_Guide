@@ -218,9 +218,9 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       FirebaseFirestore db = FirebaseFirestore.instance;
       FirebaseAuth auth = FirebaseAuth.instance;
-      final name_regex = RegExp(r"^[a-zA-Z0-9_-]{3,15}$");
-      final email_regex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
-      final psw_regex = RegExp(r'^.{8,}$');
+      final nameRegex = RegExp(r"^[a-zA-Z0-9_-]{3,15}$");
+      final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+      final pswRegex = RegExp(r'^.{8,}$');
 
       if (name.text.isEmpty || email.text.isEmpty || pswd.text.isEmpty || cpswd.text.isEmpty) {
         show_msg("All Fields are Required");
@@ -230,15 +230,15 @@ class _MyHomePageState extends State<MyHomePage> {
         show_msg("Password Doesn't Match");
         return;
       }
-      if (!name_regex.hasMatch(name.text)) {
+      if (!nameRegex.hasMatch(name.text)) {
         show_msg("Name is Invalid");
         return;
       }
-      if (!email_regex.hasMatch(email.text)) {
+      if (!emailRegex.hasMatch(email.text)) {
         show_msg("Email is Invalid");
         return;
       }
-      if (!psw_regex.hasMatch(pswd.text)) {
+      if (!pswRegex.hasMatch(pswd.text)) {
         show_msg("Password is Invalid");
         return;
       }
@@ -279,10 +279,10 @@ class _MyHomePageState extends State<MyHomePage> {
       cpswd.clear();
       profileImageUrl.clear();
     } on FirebaseAuthException catch (e) {
-      show_msg("Firebase : " + e.toString());
+      show_msg("Firebase : $e");
       print(e.toString());
     } catch (e) {
-      show_msg("Error: " + e.toString());
+      show_msg("Error: $e");
       print(e.toString());
     } finally {
       setState(() => _isLoading = false);
