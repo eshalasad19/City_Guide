@@ -200,7 +200,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   void _navigateToDashboard() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => Dashboard()),
+      MaterialPageRoute(builder: (context) => dashboard()),
     );
   }
 

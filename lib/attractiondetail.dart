@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddAttractionDetail extends StatefulWidget {
+  const AddAttractionDetail({super.key});
+
   @override
   State<AddAttractionDetail> createState() => _AddAttractionDetailState();
 }
@@ -104,7 +106,7 @@ class _AddAttractionDetailState extends State<AddAttractionDetail> {
                 var attractions = snapshot.data!.docs;
 
                 return DropdownButtonFormField(
-                  value: selectedAttraction,
+                  initialValue: selectedAttraction,
                   items: attractions.map((doc) {
                     return DropdownMenuItem(
                       value: doc.id,

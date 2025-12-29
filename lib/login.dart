@@ -1,5 +1,6 @@
 import 'package:citiguide/Home.dart';
 import 'package:citiguide/forgetPassword.dart';
+import 'package:citiguide/signup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -154,14 +155,14 @@ class _LoginPageState extends State<LoginPage> {
   void login_user() async {
     try {
       FirebaseAuth auth = FirebaseAuth.instance;
-      final email_regex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+      final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
 
       if (email.text.isEmpty || password.text.isEmpty) {
         show_msg("All Fields are Required");
         return;
       }
 
-      if (!email_regex.hasMatch(email.text)) {
+      if (!emailRegex.hasMatch(email.text)) {
         show_msg("Email is Invalid");
         return;
       }
@@ -199,11 +200,11 @@ class _LoginPageState extends State<LoginPage> {
       } else if (e.code == 'invalid-email') {
         show_msg("Invalid email address");
       } else {
-        show_msg("Firebase Error: " + e.message.toString());
+        show_msg("Firebase Error: ${e.message}");
       }
       print(e.toString());
     } catch (e) {
-      show_msg("Error: " + e.toString());
+      show_msg("Error: $e");
       print(e.toString());
     } finally {
       setState(() => _isLoading = false);
@@ -402,7 +403,7 @@ class _LoginPageState extends State<LoginPage> {
                             TextButton(
                               onPressed: () {
                                 // TODO: Navigate to registration page
-                                // Navigator.push(context, MaterialPageRoute(builder: (builder)=>Signup()));
+                                Navigator.push(context, MaterialPageRoute(builder: (builder)=>Signup()));
                               },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,

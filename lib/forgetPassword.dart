@@ -159,14 +159,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   void send_reset_email() async {
     try {
       FirebaseAuth auth = FirebaseAuth.instance;
-      final email_regex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+      final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
 
       if (email.text.isEmpty) {
         show_msg("Please enter your email address");
         return;
       }
 
-      if (!email_regex.hasMatch(email.text)) {
+      if (!emailRegex.hasMatch(email.text)) {
         show_msg("Please enter a valid email address");
         return;
       }
@@ -187,11 +187,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       } else if (e.code == 'invalid-email') {
         show_msg("Invalid email address");
       } else {
-        show_msg("Firebase Error: " + e.message.toString());
+        show_msg("Firebase Error: ${e.message}");
       }
       print(e.toString());
     } catch (e) {
-      show_msg("Error: " + e.toString());
+      show_msg("Error: $e");
       print(e.toString());
     } finally {
       setState(() => _isLoading = false);
